@@ -2,6 +2,8 @@ import os
 import sys
 import aubio
 
+# Reference: https://github.com/aubio/aubio/blob/master/python/demos/demo_pitch.py
+
 downsample = 1 # Downsampling reduces sampling rate if needed
     # In this case, not reduced (1)
 samplerate = 44100 // downsample
@@ -16,7 +18,7 @@ class PitchPath(object):
         self.samplerate = self.src.samplerate
         #print(f'Samplerate = {samplerate}')
 
-        tolerance = 0.2 # Threshold
+        tolerance = 0.9 # Threshold
 
         pitch_obj = aubio.pitch('yin', win_s, hop_s, self.samplerate)
             # YIN: algorithm for pitch detection
@@ -43,11 +45,9 @@ class PitchPath(object):
             pitch = pitch_obj(samples)[0] # First pitch
             confidence = pitch_obj.get_confidence()
 
-            #print(f'Frame, pitch, confidence = {self.totalFrames/(samplerate), pitch, confidence}')
+            if (pitch >= 0 and pitch <= 2000): # Reasonable range of pitches audible to human ear
 
-            if (pitch >= 0 and pitch <= 300):
-
-                self.pitches[self.totalFrames] = pitch
+                self.pitches[self.totalFrames/self.samplerate] = pitch
                 self.values.append(pitch)
                 self.confidences.append(confidence)
 
@@ -69,13 +69,14 @@ class PitchPath(object):
         print(f'Pitch range = {max(self.uniqueVals)} - {min(self.uniqueVals)} = {max(self.uniqueVals) - min(self.uniqueVals)}')
         return abs(max(self.uniqueVals) - min(self.uniqueVals))
 
-
-mydir = r'C:\Users\Amy\15-112\termProject\aubio_demo\sampleAudio'
+mydir = r'C:\Users\Amy\15-112\termProject\TP1_Deliverable\sampleAudio'
 myfile = 'file_example_WAV_1MG.wav'
 
 fileName = mydir + os.sep + myfile
+song = fileName
 
-newPath = PitchPath(fileName)
+test = PitchPath(song)
+test.getPitchRange()
 
-newPitchPath = PitchPath(fileName)
-path = newPitchPath.getPitchPath()
+print(test.uniqueVals)
+print(max(test.uniqueVals))
