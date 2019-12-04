@@ -9,7 +9,6 @@ from tkinter import *
 import os
 from scipy.interpolate import interp1d
 import projectileClass as pC
-#import playSoundClass as playS
 import winsound
 
 import random
@@ -32,6 +31,7 @@ import random
     # http://www.cs.cmu.edu/~112/notes/notes-graphics-part2.html#customColors
 # Audio .wav sample files:
     # https://file-examples.com/index.php/sample-audio-files/sample-wav-download/
+    # Artist: Kevin MacLoed
 # Playing audio simultaneously as game runs:
     # https://stackoverflow.com/questions/44472162/how-do-play-audio-playsound-in-background-of-python-script
     # https://docs.python.org/2/library/winsound.html
@@ -66,6 +66,8 @@ class PitchPathmaker(cmug.Mode):
         self.attack = False
         self.attackRange = set()
         self.injured = False
+        self.scoreStreak = 0
+        self.bestScorestreak = 0
 
         # PLAYER SPRITE
         path = r'C:\Users\Amy\15-112\termProject\TP3_Deliverable\spritesheets\player1_spritesheet.png'
@@ -82,6 +84,8 @@ class PitchPathmaker(cmug.Mode):
         self.r = (sDims[0]**2 + sDims[1]**2)**0.5 // 2
         self.playerAttackingSprite = self.loadImage(r'C:\Users\Amy\15-112\termProject\TP3_Deliverable\spritesheets\attackingSprite.png')
         self.attackSprite = self.scaleImage(self.playerAttackingSprite, 1/2)
+        self.playerInjurySprite = self.loadImage(r'C:\Users\Amy\15-112\termProject\TP3_Deliverable\spritesheets\injuredSprite.png')
+        self.injuredSprite = self.scaleImage(self.playerInjurySprite, 1/2)
 
         # ENEMY SPRITE
         self.throwing = False
@@ -138,7 +142,7 @@ class PitchPathmaker(cmug.Mode):
         self.range = self.pitchPath.getPitchRange() # Range of pitches
         self.minPitch = self.pitchPath.getMinPitch() # Lowest pitch
 
-        self.pitchPath = [] # Path of (x,y) based on (frame, pitch)
+        self.pitchPath = [(0, self.height//2)] # Path of (x,y) based on (frame, pitch)
         self.curvePathVals = [(self.width//4, self.height//2)] # Path of (x, y) based on (scrollX, height)
         self.xVals = []
         self.yVals = []
@@ -166,7 +170,6 @@ class PitchPathmaker(cmug.Mode):
         self.f = interp1d(x, y, kind='cubic')
 
         # ENEMY
-        self.delay = 1 # Seconds of enemy throwing projectile, before projectile actually launches
         self.enemy = eC.Enemy(self.width-100, self.height//2)
         ex = self.enemy.x
         ey = self.enemy.y
@@ -180,7 +183,6 @@ class PitchPathmaker(cmug.Mode):
 
         self.apy = 1 # "Gravity"; i.e. acceleration of projectile in y-direction (APY)
 
-#        self.playingSong = playS.PlaySound(self.song)
         winsound.PlaySound(self.song, winsound.SND_ASYNC | winsound.SND_ALIAS)
 
     @staticmethod
@@ -209,6 +211,8 @@ class PitchPathmaker(cmug.Mode):
         elif (event.key == 'r'):
             self.appStarted()
             self.app.setActiveMode(self.app.splashScreenMode)
+        elif (event.key == 'S'):
+            self.app.setActiveMode(self.app.bigHelpMode)
 
     def playerProjectileIntersection(self):
         # LOOP THROUGH PROJECTILES
@@ -255,7 +259,7 @@ class PitchPathmaker(cmug.Mode):
             for i in range(len(self.curvePathVals)):
                 pair = self.curvePathVals[i]
                 # Reassign curve, pushing back the x value by the scroll
-                newPair = (pair[0] - self.scrollX, pair[1])
+                newPair = (pair[0] - (self.dx), pair[1])
                 self.curvePathVals[i] = newPair
             self.curvePath = tuple(self.curvePathVals) # Reassign curve path
 
@@ -280,12 +284,21 @@ class PitchPathmaker(cmug.Mode):
                     projectile = self.playerProjectileIntersection() # Returns projectile object that intersects with player
                     # 1. Either player attacks or is injured
                     if (self.seconds in self.attackRange):
+                        # Account for attack
                         self.player.attack()
                         self.msg = f'New score: {self.player.score}'
+                        # Account for scorestreak
+                        self.scoreStreak += 1
+                        if (self.scoreStreak > self.bestScorestreak):
+                            self.msg = f'New best scorestreak! {self.bestScorestreak}'
+                            self.bestScorestreak = self.scoreStreak
                         self.attackRange = set()
                     else:
+                        # Account for injury
                         self.injured = True
                         self.player.injured()
+                        # Account for scorestreak
+                        self.scoreStreak = 0
                         self.msg = f'Oh no! Your health decreased to {self.player.health}'
                         if (self.player.health <= 0):
                             self.gameOver = True
@@ -299,27 +312,18 @@ class PitchPathmaker(cmug.Mode):
             if (startProj in self.beatVals): # Is this time in beats?
                 finalY = self.f(startProj)
                 # New projectile initialized
-                index = self.convertYValueToInt(finalY)
-                newProjectile = pC.Projectile(self.width-self.enemyXSize, self.height//2, finalY, self.apy, self.projectileYTime, index)
+                newProjectile = pC.Projectile(self.width-self.enemyXSize, self.height//2, finalY, self.apy, self.projectileYTime)
                 # New projectile added to list
                 self.projectiles.append(newProjectile)
                 self.throwing = True
 
             # Initialize enemy to throw projectile
-            enemyStart = self.seconds + self.timeToReachPlayer + self.delay
+            enemyStart = self.seconds + self.timeToReachPlayer
             if (enemyStart in self.beatVals):
                 self.throwing = True
 
             self.seconds += 0.1 # 100 milliseconds => 0.1 second
 
-    # Turn y value into an int for projectile color
-    def convertYValueToInt(self, y):
-        range = self.height//2
-        tab = range/5
-        minimum = self.height//4
-        intermediate = int((y-minimum)/tab)
-        return intermediate
-        
     def mousePressed(self, event):
         if (not self.gameStarted):
             # Check which box click is in
@@ -379,11 +383,13 @@ class PitchPathmaker(cmug.Mode):
             # draw sprite
             if (self.attack):
                 canvas.create_image(x, y, image=ImageTk.PhotoImage(self.attackSprite))
+            elif (self.injured):
+                canvas.create_image(x, y, image=ImageTk.PhotoImage(self.injuredSprite))
             else:
                 sprite = self.sprites[self.spriteCounter]
                 canvas.create_image(x, y, image=ImageTk.PhotoImage(sprite))
 
-            # write message
+            # write message in white box
             if (self.msg is not None):
                 canvas.create_rectangle(self.width//2 - 50, self.height - 80, self.width//2 + 50, self.height-20, fill = 'white')
                 canvas.create_text(self.width//2, self.height - 50, text = self.msg, width = 100)
@@ -407,10 +413,10 @@ class PitchPathmaker(cmug.Mode):
         canvas.create_image(self.width//2, self.height//2, image = ImageTk.PhotoImage(self.currentBackground))
         # draw curve
         canvas.create_line(self.curvePath, fill = 'white', smooth = 1)
-        if (self.player.health == 0):
-            text = f'Game over! You lost!\nHealth: 0\nScore: {self.player.score}'
+        if (self.player.health <= 0):
+            text = f'Game over! You lost!\nHealth: 0\nScore: {self.player.score}\nBest streak: {self.bestScorestreak}'
         else:
-            text = f'Game over! You win!\nYour score: {self.player.score}'
+            text = f'Game over! You win!\nYour score: {self.player.score}\nBest streak: {self.bestScorestreak}'
         canvas.create_text(self.width//2, self.height//2, text = text, fill = 'white')
 
     def redrawAll(self, canvas):
@@ -428,7 +434,6 @@ class SplashScreenMode(Mode):
     # Custom color function from http://www.cs.cmu.edu/~112/notes/notes-graphics-part2.html#customColors
     @staticmethod
     def rgbString(red, green, blue):
-        # Don't worry about how this code works yet.
         return "#%02x%02x%02x" % (red, green, blue)
 
     def redrawAll(self, canvas):
@@ -452,11 +457,36 @@ class HelpMode(Mode):
         if (event.key == 'r'):
             self.app.setActiveMode(self.app.gameMode)
 
+class BigHelp(Mode):
+    def redrawAll(self, canvas):
+        font = 'Arial 12'
+        txt = \
+            '''
+               Hello!
+               This game is an audio-based sidescroller.
+               It intakes an audio file (one of three, of the user's choosing),
+               and creates a unique game experience using the Aubio module.
+
+               The only control is 'Space' to attack. 'r' allows for restart.
+               To exit this screen and restart the game, press 'g'.
+               To exit this screen and restart the game, press 'r'.
+
+               More details can be found in the ReadMe of the GitHub:
+               https://github.com/ammielauren/15112_TermProject_amyschne/blob/master/README.md'''
+        canvas.create_text(self.width//2, self.height//2, text = txt)
+
+    def keyPressed(self, event):
+        if (event.key == 'g'):
+            self.app.setActiveMode(self.app.gameMode)
+        elif (event.key == 'r'):
+            self.app.setActiveMode(self.app.splashScreenMode)
+
 class MyModalApp(ModalApp):
     def appStarted(app):
         app.splashScreenMode = SplashScreenMode()
         app.gameMode = PitchPathmaker()
         app.helpMode = HelpMode()
+        app.bigHelpMode = BigHelp()
         app.setActiveMode(app.splashScreenMode)
 
 def runApp():
@@ -468,4 +498,5 @@ def main():
 if __name__ == '__main__':
     main()
 
+# Stop playing song if user closes app (when main stops running)
 winsound.PlaySound(None, winsound.SND_ASYNC)
