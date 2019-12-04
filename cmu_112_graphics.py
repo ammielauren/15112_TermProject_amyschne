@@ -1,4 +1,4 @@
-# Reference:
+# Source:
 # http://www.cs.cmu.edu/~112/notes/hw7.html
 # Changed only the width/height
 

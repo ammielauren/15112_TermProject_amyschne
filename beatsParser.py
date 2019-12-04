@@ -61,14 +61,3 @@ class Beats(object):
             return median(bpms)
         else:
             return -1
-
-
-mydir = r'C:\Users\Amy\15-112\termProject\TP1_Deliverable\sampleAudio'
-myfile = 'file_example_WAV_1MG.wav'
-
-fileName = mydir + os.sep + myfile
-song = fileName
-
-newB = Beats(song)
-print(newB.beats)
-print(newB.roundToFirstDecimal())

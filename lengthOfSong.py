@@ -5,7 +5,7 @@ import os
 # Reference:
 # https://aubio.org/manual/latest/py_io.html
 # First example - typical loop to read files
-# Length of song in seconds = (frames) divided by (frames per second)
+# Target value is: Length of song in seconds = (frames) divided by (frames per second)
 
 class AudioObject(object):
     def __init__(self, song, samplerate=44100, hop_size=256):

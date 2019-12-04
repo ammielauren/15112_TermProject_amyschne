@@ -16,9 +16,8 @@ class PitchPath(object):
         self.src = aubio.source(fileName, samplerate, hop_s)
         # Reassign samplerate (non-zero)
         self.samplerate = self.src.samplerate
-        #print(f'Samplerate = {samplerate}')
 
-        tolerance = 0.9 # Threshold
+        tolerance = 0.1 # Threshold
 
         pitch_obj = aubio.pitch('yin', win_s, hop_s, self.samplerate)
             # YIN: algorithm for pitch detection
@@ -54,9 +53,7 @@ class PitchPath(object):
             self.totalFrames += read
             
             if read < hop_s: break
-        #print(self.totalFrames)
         self.uniqueVals = set(self.values)
-#        print(self.uniqueVals)
     
     def getPitchPath(self):
         return self.pitches
@@ -66,17 +63,4 @@ class PitchPath(object):
         return min(self.uniqueVals)
 
     def getPitchRange(self):
-        print(f'Pitch range = {max(self.uniqueVals)} - {min(self.uniqueVals)} = {max(self.uniqueVals) - min(self.uniqueVals)}')
         return abs(max(self.uniqueVals) - min(self.uniqueVals))
-
-mydir = r'C:\Users\Amy\15-112\termProject\TP1_Deliverable\sampleAudio'
-myfile = 'file_example_WAV_1MG.wav'
-
-fileName = mydir + os.sep + myfile
-song = fileName
-
-test = PitchPath(song)
-test.getPitchRange()
-
-print(test.uniqueVals)
-print(max(test.uniqueVals))
